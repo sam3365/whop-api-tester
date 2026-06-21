@@ -47,8 +47,12 @@ function verifyStandardWebhook(rawBody, headers, secret) {
     return { ok: false, reason: `Timestamp too old (${Math.round(ageSecs)}s ago, max 300s)` };
   }
 
-  // Decode the key
-  const base64Secret = secret.startsWith("whsec_") ? secret.slice(6) : secret;
+  // Strip known Whop/StandardWebhooks secret prefixes, then base64-decode.
+  // Whop uses "ws_<base64>"  (not the Standard Webhooks "whsec_<base64>").
+  let base64Secret = secret;
+  if      (secret.startsWith("whsec_")) base64Secret = secret.slice(6);
+  else if (secret.startsWith("ws_"))    base64Secret = secret.slice(3);
+
   let secretBytes;
   try {
     secretBytes = Buffer.from(base64Secret, "base64");
