@@ -18,20 +18,20 @@ function fmtDate(iso) {
 
 function StatusBadge({ status }) {
   const map = {
-    paid:     { bg: "#0d1a0d", border: "#16a34a", color: "#86efac", label: "paid" },
-    open:     { bg: "#1c1505", border: "#d97706", color: "#fde68a", label: "open" },
-    refunded: { bg: "#0d0d1a", border: "#6366f1", color: "#c7d2fe", label: "refunded" },
-    voided:   { bg: "#1a1a1a", border: "#71717a", color: "#d4d4d8", label: "voided" },
-    failed:   { bg: "#1c0a0a", border: "#dc2626", color: "#fca5a5", label: "failed" },
+    paid:     { bg: "#0d1a0d", border: "#16a34a", color: "#86efac" },
+    open:     { bg: "#1c1505", border: "#d97706", color: "#fde68a" },
+    refunded: { bg: "#0d0d1a", border: "#6366f1", color: "#c7d2fe" },
+    voided:   { bg: "#1a1a1a", border: "#71717a", color: "#d4d4d8" },
+    failed:   { bg: "#1c0a0a", border: "#dc2626", color: "#fca5a5" },
   };
-  const s = map[status] ?? { bg: "var(--surface2)", border: "var(--border)", color: "var(--text-dim)", label: status ?? "—" };
+  const s = map[status] ?? { bg: "var(--surface2)", border: "var(--border)", color: "var(--text-dim)" };
   return (
     <span style={{
       fontSize: "0.68rem", fontWeight: 700, padding: "2px 10px", borderRadius: 999,
       background: s.bg, border: `1px solid ${s.border}`, color: s.color,
       whiteSpace: "nowrap",
     }}>
-      {s.label}
+      {status ?? "—"}
     </span>
   );
 }
@@ -64,7 +64,10 @@ function JsonBlock({ data, label = "Raw JSON" }) {
         color: "var(--text-dim)", fontSize: "0.72rem",
         display: "flex", alignItems: "center", gap: 4,
       }}>
-        <span style={{ display: "inline-block", width: 10, transition: "transform .15s", transform: open ? "rotate(90deg)" : "none" }}>▶</span>
+        <span style={{
+          display: "inline-block", width: 10,
+          transition: "transform .15s", transform: open ? "rotate(90deg)" : "none",
+        }}>▶</span>
         {label}
       </button>
       {open && (
@@ -86,7 +89,11 @@ function PaymentCard({ payment, isNew }) {
   return (
     <div style={{
       background: "var(--surface)", border: "1px solid var(--border)",
-      borderLeft: `3px solid ${payment.status === "paid" ? "var(--ok)" : payment.status === "open" ? "#d97706" : "var(--border)"}`,
+      borderLeft: `3px solid ${
+        payment.status === "paid" ? "var(--ok)"
+        : payment.status === "open" ? "#d97706"
+        : "var(--border)"
+      }`,
       borderRadius: "var(--radius)", padding: "18px 20px", marginBottom: 12,
       animation: isNew ? "fadeIn .3s ease" : "none",
     }}>
@@ -142,7 +149,9 @@ function PaymentCard({ payment, isNew }) {
           <div><span style={{ color: "var(--text-dim)" }}>Billing: </span>{payment.billing_reason}</div>
         )}
         {payment.payment_method_type && (
-          <div><span style={{ color: "var(--text-dim)" }}>Method: </span>{payment.payment_method_type}
+          <div>
+            <span style={{ color: "var(--text-dim)" }}>Method: </span>
+            {payment.payment_method_type}
             {payment.card_brand && ` · ${payment.card_brand} ····${payment.card_last4}`}
           </div>
         )}
@@ -157,16 +166,35 @@ function PaymentCard({ payment, isNew }) {
   );
 }
 
+// ── Tab toggle ────────────────────────────────────────────────────────────────
+function ModeTab({ active, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "6px 18px", borderRadius: 6, border: "none", cursor: "pointer",
+        fontWeight: 600, fontSize: "0.82rem", transition: "background .15s, color .15s",
+        background: active ? "var(--accent)" : "var(--surface2)",
+        color:      active ? "#fff"          : "var(--text-dim)",
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PaymentsPage() {
-  const [email,   setEmail]   = useState("");
-  const [results, setResults] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
-  const [newIds,  setNewIds]  = useState(new Set());
+  const [mode,      setMode]      = useState("email");   // "email" | "payment_id"
+  const [email,     setEmail]     = useState("");
+  const [paymentId, setPaymentId] = useState("");
+  const [results,   setResults]   = useState(null);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
+  const [newIds,    setNewIds]     = useState(new Set());
   const inputRef = useRef(null);
 
-  // Pre-fill email from checkout prefill endpoint
+  // Pre-fill email from env
   useEffect(() => {
     fetch("/api/checkout/prefill")
       .then(r => r.json())
@@ -174,15 +202,28 @@ export default function PaymentsPage() {
       .catch(() => {});
   }, []);
 
+  // Reset results when switching modes
+  const switchMode = (m) => {
+    setMode(m);
+    setResults(null);
+    setError(null);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const query = mode === "email" ? email.trim() : paymentId.trim();
+
   const search = async () => {
-    const q = email.trim();
-    if (!q) return;
+    if (!query) return;
     setLoading(true);
     setError(null);
     setResults(null);
 
+    const params = mode === "email"
+      ? `email=${encodeURIComponent(query)}`
+      : `payment_id=${encodeURIComponent(query)}`;
+
     try {
-      const res  = await fetch(`/api/payments/lookup?email=${encodeURIComponent(q)}`);
+      const res  = await fetch(`/api/payments/lookup?${params}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
@@ -195,6 +236,13 @@ export default function PaymentsPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const clear = () => {
+    setResults(null);
+    setError(null);
+    if (mode === "payment_id") setPaymentId("");
+    setTimeout(() => inputRef.current?.focus(), 50);
   };
 
   const payments = results?.matches ?? [];
@@ -237,53 +285,79 @@ export default function PaymentsPage() {
       {/* Search bar */}
       <div style={{
         padding: "20px 28px", borderBottom: "1px solid var(--border)",
-        background: "var(--surface)", display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap",
+        background: "var(--surface)", display: "flex", flexDirection: "column", gap: 14,
       }}>
-        <div style={{ flex: 1, minWidth: 280 }}>
-          <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-dim)", marginBottom: 6 }}>
-            User Email
-          </label>
-          <input
-            ref={inputRef}
-            type="email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            onKeyDown={e => e.key === "Enter" && search()}
-            placeholder="user@example.com"
-            style={{
-              width: "100%", padding: "9px 14px",
-              background: "var(--bg)", border: "1px solid var(--border)",
-              borderRadius: 8, color: "var(--text)", fontSize: "0.9rem",
-              outline: "none", boxSizing: "border-box",
-            }}
-          />
+        {/* Mode tabs */}
+        <div style={{ display: "flex", gap: 8 }}>
+          <ModeTab active={mode === "email"}      onClick={() => switchMode("email")}>✉️ Search by Email</ModeTab>
+          <ModeTab active={mode === "payment_id"} onClick={() => switchMode("payment_id")}>🔑 Search by Payment ID</ModeTab>
         </div>
-        <button
-          onClick={search}
-          disabled={loading || !email.trim()}
-          style={{
-            padding: "9px 28px", borderRadius: 8, border: "none",
-            background: loading || !email.trim() ? "var(--surface2)" : "var(--accent)",
-            color: loading || !email.trim() ? "var(--text-dim)" : "#fff",
-            fontWeight: 700, fontSize: "0.9rem",
-            cursor: loading || !email.trim() ? "not-allowed" : "pointer",
-            transition: "background .15s", whiteSpace: "nowrap",
-          }}
-        >
-          {loading ? "Searching…" : "Search"}
-        </button>
-        {results && (
+
+        {/* Input row */}
+        <div style={{ display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 280 }}>
+            <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-dim)", marginBottom: 6 }}>
+              {mode === "email" ? "User Email" : "Payment ID"}
+            </label>
+            {mode === "email" ? (
+              <input
+                ref={inputRef}
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && search()}
+                placeholder="user@example.com"
+                style={{
+                  width: "100%", padding: "9px 14px",
+                  background: "var(--bg)", border: "1px solid var(--border)",
+                  borderRadius: 8, color: "var(--text)", fontSize: "0.9rem",
+                  outline: "none", boxSizing: "border-box",
+                }}
+              />
+            ) : (
+              <input
+                ref={inputRef}
+                type="text"
+                value={paymentId}
+                onChange={e => setPaymentId(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && search()}
+                placeholder="pay_xxxxxxxxxxxxxx"
+                style={{
+                  width: "100%", padding: "9px 14px",
+                  background: "var(--bg)", border: "1px solid var(--border)",
+                  borderRadius: 8, color: "var(--text)", fontSize: "0.9rem",
+                  outline: "none", fontFamily: "var(--font-mono)", boxSizing: "border-box",
+                }}
+              />
+            )}
+          </div>
           <button
-            onClick={() => { setResults(null); setError(null); setEmail(""); setTimeout(() => inputRef.current?.focus(), 50); }}
+            onClick={search}
+            disabled={loading || !query}
             style={{
-              padding: "9px 16px", borderRadius: 8,
-              border: "1px solid var(--border)", background: "var(--surface2)",
-              color: "var(--text-dim)", fontSize: "0.85rem", cursor: "pointer",
+              padding: "9px 28px", borderRadius: 8, border: "none",
+              background: loading || !query ? "var(--surface2)" : "var(--accent)",
+              color: loading || !query ? "var(--text-dim)" : "#fff",
+              fontWeight: 700, fontSize: "0.9rem",
+              cursor: loading || !query ? "not-allowed" : "pointer",
+              transition: "background .15s", whiteSpace: "nowrap",
             }}
           >
-            Clear
+            {loading ? "Searching…" : "Search"}
           </button>
-        )}
+          {(results || error) && (
+            <button
+              onClick={clear}
+              style={{
+                padding: "9px 16px", borderRadius: 8,
+                border: "1px solid var(--border)", background: "var(--surface2)",
+                color: "var(--text-dim)", fontSize: "0.85rem", cursor: "pointer",
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Info banner */}
@@ -294,10 +368,19 @@ export default function PaymentsPage() {
         display: "flex", alignItems: "center", gap: 8,
       }}>
         <span>🔍</span>
-        <span>
-          Uses the Whop API&apos;s native email search — returns all payments associated with this email address.
-          Requires <code style={{ fontFamily: "var(--font-mono)", color: "var(--ok)" }}>member:email:read</code> scope on your API key.
-        </span>
+        {mode === "email" ? (
+          <span>
+            Uses the Whop API&apos;s native email search. Requires{" "}
+            <code style={{ fontFamily: "var(--font-mono)", color: "var(--ok)" }}>member:email:read</code> scope.
+          </span>
+        ) : (
+          <span>
+            Retrieves a single payment by ID via{" "}
+            <code style={{ fontFamily: "var(--font-mono)", color: "var(--ok)" }}>payments.retrieve(id)</code>.
+            Requires{" "}
+            <code style={{ fontFamily: "var(--font-mono)", color: "var(--ok)" }}>payment:basic:read</code> scope.
+          </span>
+        )}
       </div>
 
       {/* Body */}
@@ -311,9 +394,8 @@ export default function PaymentsPage() {
             color: "var(--text-dim)", textAlign: "center",
           }}>
             <span style={{ fontSize: "3rem" }}>💰</span>
-            <p style={{ fontSize: "1rem", fontWeight: 600 }}>Enter a user email to look up payments</p>
-            <p style={{ fontSize: "0.85rem", lineHeight: 1.6, maxWidth: 480 }}>
-              Returns all Whop payments associated with the given email address.
+            <p style={{ fontSize: "1rem", fontWeight: 600 }}>
+              {mode === "email" ? "Enter a user email to look up payments" : "Enter a payment ID to retrieve it"}
             </p>
           </div>
         )}
@@ -322,7 +404,7 @@ export default function PaymentsPage() {
         {loading && (
           <div style={{ paddingTop: 60, textAlign: "center", color: "var(--text-dim)" }}>
             <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>⏳</div>
-            <p>Fetching payments…</p>
+            <p>{mode === "email" ? "Fetching payments…" : "Retrieving payment…"}</p>
           </div>
         )}
 
@@ -347,20 +429,26 @@ export default function PaymentsPage() {
               borderRadius: "var(--radius)", display: "flex", gap: 24, flexWrap: "wrap",
               fontSize: "0.82rem",
             }}>
-              <div>
-                <span style={{ color: "var(--text-dim)" }}>Email: </span>
-                <strong style={{ color: "var(--accent)" }}>{results.email}</strong>
-              </div>
+              {results.mode === "email" && (
+                <div>
+                  <span style={{ color: "var(--text-dim)" }}>Email: </span>
+                  <strong style={{ color: "var(--accent)" }}>{results.email}</strong>
+                </div>
+              )}
+              {results.mode === "payment_id" && (
+                <div>
+                  <span style={{ color: "var(--text-dim)" }}>Payment ID: </span>
+                  <code style={{ fontFamily: "var(--font-mono)", color: "var(--accent)" }}>{results.payment_id}</code>
+                </div>
+              )}
               <div>
                 <span style={{ color: "var(--text-dim)" }}>Payments found: </span>
                 <strong style={{ color: payments.length > 0 ? "var(--ok)" : "var(--text-dim)" }}>{payments.length}</strong>
               </div>
-              {payments.length > 0 && (
+              {payments.length > 0 && results.mode === "email" && (
                 <div>
                   <span style={{ color: "var(--text-dim)" }}>Total paid: </span>
-                  <strong style={{ color: "var(--ok)" }}>
-                    {fmt(totalPaid, payments[0]?.currency)}
-                  </strong>
+                  <strong style={{ color: "var(--ok)" }}>{fmt(totalPaid, payments[0]?.currency)}</strong>
                 </div>
               )}
             </div>
@@ -373,10 +461,7 @@ export default function PaymentsPage() {
                 border: "1px solid var(--border)", color: "var(--text-dim)",
               }}>
                 <div style={{ fontSize: "2rem", marginBottom: 12 }}>🔍</div>
-                <p style={{ fontWeight: 600, marginBottom: 6 }}>No payments found</p>
-                <p style={{ fontSize: "0.85rem" }}>
-                  No payments were found for <strong>{results.email}</strong>.
-                </p>
+                <p style={{ fontWeight: 600 }}>No payments found</p>
               </div>
             )}
 
