@@ -332,6 +332,18 @@ export default function CheckoutPage() {
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionError,   setSessionError]   = useState(null);
 
+  // ── Theme sync ────────────────────────────────────────────────────────────
+  // Watch data-theme on <html> so the embed re-theming follows the toggle.
+  const [appTheme, setAppTheme] = useState("dark");
+  useEffect(() => {
+    const read = () =>
+      document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+    setAppTheme(read());
+    const observer = new MutationObserver(() => setAppTheme(read()));
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
+
   const router    = useRouter();
   const isSandbox = ENV === "sandbox";
 
@@ -403,10 +415,10 @@ export default function CheckoutPage() {
     }
   }, [selected?.planId, memberId, cardholderName, addressLine1, addressCity, addressState, addressZip, addressCountry]);
 
-  // Embed key forces remount when config changes (include address so embed
-  // re-seeds when the user edits any field before selecting a plan)
+  // Embed key forces remount when config changes (include address + theme so
+  // the embed re-seeds / re-themes when any field or the toggle changes)
   const embedKey = sessionId
-    ? `session-${sessionId}-${prefillEmail}-${disableEmail}-${hideEmail}`
+    ? `session-${sessionId}-${prefillEmail}-${disableEmail}-${hideEmail}-${appTheme}`
     : [
         selected?.planId,
         prefillEmail,
@@ -419,6 +431,7 @@ export default function CheckoutPage() {
         addressCountry,
         disableEmail,
         hideEmail,
+        appTheme,
       ].join("|");
 
   // Build prefill object for the embed.
@@ -722,7 +735,10 @@ export default function CheckoutPage() {
                 {...(sessionId ? { sessionId } : { planId: selected.planId })}
                 environment={ENV}
                 returnUrl={returnUrl}
-                theme="dark"
+                theme={appTheme}
+                themeOptions={{
+                  backgroundColor: appTheme === "light" ? "#f4f6fb" : "#0f0f13",
+                }}
                 prefill={Object.keys(embedPrefill).length ? embedPrefill : undefined}
                 disableEmail={disableEmail}
                 hideEmail={hideEmail}
