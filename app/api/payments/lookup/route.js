@@ -11,7 +11,7 @@
  *   limit               — max payments to scan (default 200, max 500)
  */
 
-import { whop, COMPANY_ID } from "@/lib/whop-client.js";
+import { whop } from "@/lib/whop-client.js";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +40,7 @@ export async function GET(request) {
     // Paginate through payments until we've scanned enough or run out
     outer: while (scanned < scanLimit) {
       const page = await whop.payments.list({
-        ...(COMPANY_ID ? { company_id: COMPANY_ID } : {}),
-        limit:  PAGE_SIZE,
+        limit: PAGE_SIZE,
         ...(cursor ? { after: cursor } : {}),
       });
 
