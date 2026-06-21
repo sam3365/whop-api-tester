@@ -403,15 +403,39 @@ export default function CheckoutPage() {
     }
   }, [selected?.planId, memberId, cardholderName, addressLine1, addressCity, addressState, addressZip, addressCountry]);
 
-  // Embed key forces remount when config changes
+  // Embed key forces remount when config changes (include address so embed
+  // re-seeds when the user edits any field before selecting a plan)
   const embedKey = sessionId
     ? `session-${sessionId}-${prefillEmail}-${disableEmail}-${hideEmail}`
-    : `${selected?.planId}-${prefillEmail}-${disableEmail}-${hideEmail}`;
+    : [
+        selected?.planId,
+        prefillEmail,
+        cardholderName,
+        addressLine1,
+        addressLine2,
+        addressCity,
+        addressState,
+        addressZip,
+        addressCountry,
+        disableEmail,
+        hideEmail,
+      ].join("|");
 
-  // Build prefill object for the embed
+  // Build prefill object for the embed.
+  // WhopEmbeddedCheckoutPrefillOptions: { email?, address?, shippingAddress? }
+  // WhopCheckoutAddress: { name, line1, line2?, city, state, postalCode, country }
+  const addressPrefill = {};
+  if (cardholderName) addressPrefill.name        = cardholderName;
+  if (addressLine1)   addressPrefill.line1        = addressLine1;
+  if (addressLine2)   addressPrefill.line2        = addressLine2;
+  if (addressCity)    addressPrefill.city         = addressCity;
+  if (addressState)   addressPrefill.state        = addressState;
+  if (addressZip)     addressPrefill.postalCode   = addressZip;
+  if (addressCountry) addressPrefill.country      = addressCountry;
+
   const embedPrefill = {
-    ...(prefillEmail   ? { email: prefillEmail }     : {}),
-    ...(cardholderName ? { name:  cardholderName }   : {}),
+    ...(prefillEmail                      ? { email:   prefillEmail }   : {}),
+    ...(Object.keys(addressPrefill).length ? { address: addressPrefill } : {}),
   };
 
   return (
