@@ -48,9 +48,7 @@ function MetadataBlock({ metadata }) {
       {Object.entries(metadata).map(([k, v]) => (
         <div key={k}>
           <span style={{ color: "var(--text-dim)" }}>{k}: </span>
-          <span style={{ color: k === "internal_member_id" ? "var(--ok)" : "var(--text)", fontWeight: k === "internal_member_id" ? 700 : 400 }}>
-            {String(v)}
-          </span>
+          <span style={{ color: "var(--text)" }}>{String(v)}</span>
         </div>
       ))}
     </div>
@@ -119,6 +117,9 @@ function PaymentCard({ payment, isNew }) {
         {payment.user?.email && (
           <div><span style={{ color: "var(--text-dim)" }}>Email: </span>{payment.user.email}</div>
         )}
+        {payment.user?.name && (
+          <div><span style={{ color: "var(--text-dim)" }}>Name: </span>{payment.user.name}</div>
+        )}
         {payment.plan?.id && (
           <div><span style={{ color: "var(--text-dim)" }}>Plan: </span>
             <code style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem" }}>{payment.plan.id}</code>
@@ -150,10 +151,7 @@ function PaymentCard({ payment, isNew }) {
         )}
       </div>
 
-      {/* Metadata */}
       <MetadataBlock metadata={payment.metadata} />
-
-      {/* Raw JSON */}
       <JsonBlock data={payment} label="Full payment record" />
     </div>
   );
@@ -161,38 +159,36 @@ function PaymentCard({ payment, isNew }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function PaymentsPage() {
-  const [memberId,   setMemberId]   = useState("");
-  const [results,    setResults]    = useState(null);  // null = not searched yet
-  const [loading,    setLoading]    = useState(false);
-  const [error,      setError]      = useState(null);
-  const [newIds,     setNewIds]     = useState(new Set());
+  const [email,   setEmail]   = useState("");
+  const [results, setResults] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState(null);
+  const [newIds,  setNewIds]  = useState(new Set());
   const inputRef = useRef(null);
 
-  // Pre-fill from env on mount
+  // Pre-fill email from checkout prefill endpoint
   useEffect(() => {
     fetch("/api/checkout/prefill")
       .then(r => r.json())
-      .then(d => { if (d.memberId) setMemberId(d.memberId); })
+      .then(d => { if (d.email) setEmail(d.email); })
       .catch(() => {});
   }, []);
 
-  const search = async (idOverride) => {
-    const id = (idOverride ?? memberId).trim();
-    if (!id) return;
+  const search = async () => {
+    const q = email.trim();
+    if (!q) return;
     setLoading(true);
     setError(null);
     setResults(null);
 
     try {
-      const res  = await fetch(`/api/payments/lookup?internal_member_id=${encodeURIComponent(id)}`);
+      const res  = await fetch(`/api/payments/lookup?email=${encodeURIComponent(q)}`);
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      // Animate new cards
       const ids = new Set((data.matches ?? []).map(p => p.id));
       setNewIds(ids);
       setTimeout(() => setNewIds(new Set()), 1500);
-
       setResults(data);
     } catch (e) {
       setError(e.message);
@@ -201,9 +197,12 @@ export default function PaymentsPage() {
     }
   };
 
-  const handleKeyDown = (e) => { if (e.key === "Enter") search(); };
-
   const payments = results?.matches ?? [];
+
+  const totalPaid = payments
+    .filter(p => p.status === "paid")
+    .reduce((sum, p) => sum + parseFloat(p.total ?? p.amount ?? 0), 0)
+    .toFixed(2);
 
   return (
     <div style={{
@@ -230,8 +229,7 @@ export default function PaymentsPage() {
             background: "var(--surface2)", border: "1px solid var(--border)",
             padding: "4px 12px", borderRadius: 6,
           }}>
-            {results.count} match{results.count !== 1 ? "es" : ""} · {results.scanned} scanned
-            {results.truncated && " · truncated"}
+            {results.count} payment{results.count !== 1 ? "s" : ""} found
           </span>
         )}
       </header>
@@ -243,39 +241,32 @@ export default function PaymentsPage() {
       }}>
         <div style={{ flex: 1, minWidth: 280 }}>
           <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-dim)", marginBottom: 6 }}>
-            Internal Member ID
-            <span style={{
-              marginLeft: 8, fontSize: "0.62rem", padding: "1px 7px", borderRadius: 999,
-              background: "#0d1a0d", border: "1px solid var(--ok)", color: "#86efac",
-              fontFamily: "var(--font-mono)",
-            }}>
-              TEST_MEMBERSHIP_ID
-            </span>
+            User Email
           </label>
           <input
             ref={inputRef}
-            type="text"
-            value={memberId}
-            onChange={e => setMemberId(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="e.g. 6a31b370399b2834e89a84bb"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && search()}
+            placeholder="user@example.com"
             style={{
               width: "100%", padding: "9px 14px",
               background: "var(--bg)", border: "1px solid var(--border)",
               borderRadius: 8, color: "var(--text)", fontSize: "0.9rem",
-              outline: "none", fontFamily: "var(--font-mono)", boxSizing: "border-box",
+              outline: "none", boxSizing: "border-box",
             }}
           />
         </div>
         <button
-          onClick={() => search()}
-          disabled={loading || !memberId.trim()}
+          onClick={search}
+          disabled={loading || !email.trim()}
           style={{
             padding: "9px 28px", borderRadius: 8, border: "none",
-            background: loading || !memberId.trim() ? "var(--surface2)" : "var(--accent)",
-            color: loading || !memberId.trim() ? "var(--text-dim)" : "#fff",
+            background: loading || !email.trim() ? "var(--surface2)" : "var(--accent)",
+            color: loading || !email.trim() ? "var(--text-dim)" : "#fff",
             fontWeight: 700, fontSize: "0.9rem",
-            cursor: loading || !memberId.trim() ? "not-allowed" : "pointer",
+            cursor: loading || !email.trim() ? "not-allowed" : "pointer",
             transition: "background .15s", whiteSpace: "nowrap",
           }}
         >
@@ -283,7 +274,7 @@ export default function PaymentsPage() {
         </button>
         {results && (
           <button
-            onClick={() => { setResults(null); setError(null); setMemberId(""); setTimeout(() => inputRef.current?.focus(), 50); }}
+            onClick={() => { setResults(null); setError(null); setEmail(""); setTimeout(() => inputRef.current?.focus(), 50); }}
             style={{
               padding: "9px 16px", borderRadius: 8,
               border: "1px solid var(--border)", background: "var(--surface2)",
@@ -304,9 +295,8 @@ export default function PaymentsPage() {
       }}>
         <span>🔍</span>
         <span>
-          Scans up to 200 recent payments and returns those whose{" "}
-          <code style={{ fontFamily: "var(--font-mono)", color: "var(--ok)" }}>metadata.internal_member_id</code>
-          {" "}matches. Payments must have been created via a Checkout Configuration session.
+          Uses the Whop API&apos;s native email search — returns all payments associated with this email address.
+          Requires <code style={{ fontFamily: "var(--font-mono)", color: "var(--ok)" }}>member:email:read</code> scope on your API key.
         </span>
       </div>
 
@@ -321,10 +311,9 @@ export default function PaymentsPage() {
             color: "var(--text-dim)", textAlign: "center",
           }}>
             <span style={{ fontSize: "3rem" }}>💰</span>
-            <p style={{ fontSize: "1rem", fontWeight: 600 }}>Enter an Internal Member ID to look up payments</p>
+            <p style={{ fontSize: "1rem", fontWeight: 600 }}>Enter a user email to look up payments</p>
             <p style={{ fontSize: "0.85rem", lineHeight: 1.6, maxWidth: 480 }}>
-              This searches payments whose <code style={{ fontFamily: "var(--font-mono)", color: "var(--ok)" }}>metadata.internal_member_id</code> matches
-              the ID you specify — populated when you create a Checkout Configuration session.
+              Returns all Whop payments associated with the given email address.
             </p>
           </div>
         )}
@@ -332,8 +321,8 @@ export default function PaymentsPage() {
         {/* Loading */}
         {loading && (
           <div style={{ paddingTop: 60, textAlign: "center", color: "var(--text-dim)" }}>
-            <div style={{ fontSize: "1.5rem", marginBottom: 12, animation: "spin 1s linear infinite" }}>⏳</div>
-            <p>Scanning payments…</p>
+            <div style={{ fontSize: "1.5rem", marginBottom: 12 }}>⏳</div>
+            <p>Fetching payments…</p>
           </div>
         )}
 
@@ -359,29 +348,18 @@ export default function PaymentsPage() {
               fontSize: "0.82rem",
             }}>
               <div>
-                <span style={{ color: "var(--text-dim)" }}>Member ID: </span>
-                <code style={{ fontFamily: "var(--font-mono)", color: "var(--ok)", fontWeight: 700 }}>{results.internal_member_id}</code>
+                <span style={{ color: "var(--text-dim)" }}>Email: </span>
+                <strong style={{ color: "var(--accent)" }}>{results.email}</strong>
               </div>
               <div>
                 <span style={{ color: "var(--text-dim)" }}>Payments found: </span>
                 <strong style={{ color: payments.length > 0 ? "var(--ok)" : "var(--text-dim)" }}>{payments.length}</strong>
               </div>
-              <div>
-                <span style={{ color: "var(--text-dim)" }}>Payments scanned: </span>
-                <span>{results.scanned}</span>
-                {results.truncated && <span style={{ color: "#d97706", marginLeft: 6 }}>(scan limit reached)</span>}
-              </div>
               {payments.length > 0 && (
                 <div>
                   <span style={{ color: "var(--text-dim)" }}>Total paid: </span>
                   <strong style={{ color: "var(--ok)" }}>
-                    {fmt(
-                      payments
-                        .filter(p => p.status === "paid")
-                        .reduce((sum, p) => sum + parseFloat(p.total ?? p.amount ?? 0), 0)
-                        .toFixed(2),
-                      payments[0]?.currency,
-                    )}
+                    {fmt(totalPaid, payments[0]?.currency)}
                   </strong>
                 </div>
               )}
@@ -397,9 +375,7 @@ export default function PaymentsPage() {
                 <div style={{ fontSize: "2rem", marginBottom: 12 }}>🔍</div>
                 <p style={{ fontWeight: 600, marginBottom: 6 }}>No payments found</p>
                 <p style={{ fontSize: "0.85rem" }}>
-                  No payments in the last {results.scanned} scanned had{" "}
-                  <code style={{ fontFamily: "var(--font-mono)" }}>metadata.internal_member_id = "{results.internal_member_id}"</code>.
-                  <br />Make sure you created the checkout session with this ID set.
+                  No payments were found for <strong>{results.email}</strong>.
                 </p>
               </div>
             )}
@@ -408,17 +384,6 @@ export default function PaymentsPage() {
             {payments.map(payment => (
               <PaymentCard key={payment.id} payment={payment} isNew={newIds.has(payment.id)} />
             ))}
-
-            {results.truncated && (
-              <div style={{
-                padding: "12px 16px", borderRadius: "var(--radius)",
-                background: "#1c1505", border: "1px solid #d97706",
-                color: "#fde68a", fontSize: "0.8rem", marginTop: 8,
-              }}>
-                ⚠ Scan limit of {results.scanned} payments reached. There may be more matches in older payments.
-                Contact Whop support if you need metadata-based payment search without scanning.
-              </div>
-            )}
           </>
         )}
       </main>
