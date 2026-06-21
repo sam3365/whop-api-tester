@@ -5,6 +5,7 @@ import Link from "next/link";
 
 // ── Event type metadata ───────────────────────────────────────────────────────
 const EVENT_META = {
+  "payment.created":         { color: "#2563eb", bg: "#0a0f1c", label: "Payment Created",         icon: "🆕" },
   "payment.succeeded":       { color: "#16a34a", bg: "#0d1a0d", label: "Payment Succeeded",      icon: "✅" },
   "payment.failed":          { color: "#dc2626", bg: "#1c0a0a", label: "Payment Failed",          icon: "❌" },
   "payment.refunded":        { color: "#d97706", bg: "#1c1505", label: "Payment Refunded",        icon: "↩️" },
