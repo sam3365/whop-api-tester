@@ -1,0 +1,80 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+/.pnp.*
+
+# Next.js
+.next/
+out/
+build/
+dist/
+
+# Vercel
+.vercel/
+vercel.json
+
+# Environment files
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+
+# Coverage
+.nyc_output/
+coverage/
+
+# Runtime data
+.cache/
+.parcel-cache/
+/.turbo/
+*.pid
+*.seed
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDEs / editors
+# JetBrains IDEs (WebStorm, IntelliJ)
+.idea/
+# JetBrains project files
+*.iml
+*.iws
+*.ipr
+# Local workspace and other per-developer files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
+.idea/shelf/
+.idea/sshConfigs.xml
+
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Misc
+.envrc
+.local
+*.local
+*.tgz
+
+# Keys, certs
+*.pem
+*.key
+
+# Optional: macOS Spotlight
+.Spotlight-V100
+
+
+

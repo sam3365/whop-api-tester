@@ -1,0 +1,20 @@
+{
+  "name": "whop-api-tester",
+  "version": "2.0.0",
+  "description": "Next.js test harness for Whop payment and account management APIs",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@vercel/kv": "^3.0.0",
+    "@whop/checkout": "^0.1.0",
+    "@whop/sdk": "latest",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}
