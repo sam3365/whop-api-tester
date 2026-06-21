@@ -287,6 +287,14 @@ export default function Dashboard() {
           }}>
             🔔 Webhooks
           </Link>
+          <Link href="/payments" style={{
+            fontSize: "0.82rem", color: "var(--text-dim)",
+            textDecoration: "none", padding: "5px 12px",
+            border: "1px solid var(--border)", borderRadius: 6,
+            background: "var(--surface2)", transition: "color .15s, border-color .15s",
+          }}>
+            💰 Payments
+          </Link>
           <span style={S.badge}>DEV</span>
         </div>
       </header>
