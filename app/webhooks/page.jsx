@@ -138,12 +138,12 @@ function EventCard({ record, isNew }) {
           </div>
 
           {record.data?.metadata && Object.keys(record.data.metadata).length > 0 && (
-            <div style={{ marginBottom: 10, padding: "8px 12px", background: "#0d1a0d", border: "1px solid #16a34a", borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
-              <div style={{ color: "#86efac", marginBottom: 4, fontWeight: 600 }}>metadata</div>
+            <div style={{ marginBottom: 10, padding: "8px 12px", background: "var(--surface2)", border: "1px solid #16a34a", borderRadius: 6, fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
+              <div style={{ color: "var(--ok)", marginBottom: 4, fontWeight: 600 }}>metadata</div>
               {Object.entries(record.data.metadata).map(([k, v]) => (
                 <div key={k}>
                   <span style={{ color: "var(--text-dim)" }}>{k}: </span>
-                  <span style={{ color: "#4ade80" }}>{String(v)}</span>
+                  <span style={{ color: "var(--ok)" }}>{String(v)}</span>
                 </div>
               ))}
             </div>
