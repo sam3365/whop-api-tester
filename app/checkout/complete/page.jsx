@@ -24,7 +24,7 @@ function JsonBlock({ data }) {
       {open && (
         <pre style={{
           marginTop: 8, padding: "14px 16px",
-          background: "#0a0a0f", border: "1px solid var(--border)",
+          background: "var(--bg)", border: "1px solid var(--border)",
           borderRadius: 8, overflowX: "auto",
           fontFamily: "var(--font-mono)", fontSize: "0.75rem",
           color: "var(--text-dim)", lineHeight: 1.7, maxHeight: 480,
